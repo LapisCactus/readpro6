@@ -1,10 +1,6 @@
 package freesoftoriented.pro6.readpro6;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
 import java.util.List;
 
 import javax.xml.bind.JAXB;
@@ -14,31 +10,50 @@ import javax.xml.bind.annotation.XmlValue;
 
 import org.springframework.stereotype.Service;
 
+/**
+ * ProPresenter6 スライドファイルのデータ
+ *
+ */
 @Service
-public class App {
+public class ProPresentor6Data {
 
 	public void handleCommand(String filepath) {
-		System.out.println("Read:" + filepath);
-		// 読み込み
-		Path path = Paths.get(filepath);
-		byte[] filebytes;
-		try {
-			filebytes = Files.readAllBytes(path);
-		} catch (IOException e) {
-			return;
-		}
-		// XML→JavaObject
-		System.out.println("Convert:");
-		String xml = new String(filebytes);
-		RVPresentationDocument obj = JAXB.unmarshal(new StringReader(xml), RVPresentationDocument.class);
-		System.out.println(obj);
+		System.out.println("\nRead:" + filepath);
+		// XML File→JavaObject
+		System.out.println("\nConvert:");
+		RVPresentationDocument data = readFromFile(filepath);
+		System.out.println(data);
 		// Edit
+		System.out.println(String.format("Slide size: %s x %s", data.getWidth(), data.getHeight()));
+		List<RVSlideGrouping> slideGroup = data.findSlideGroup();
+		for (RVSlideGrouping group : slideGroup) {
+			List<RVDisplaySlide> slides = group.findDisplaySlide();
+			System.out.println(String.format("Slide Group (%s slides)", slides.size()));
+			for (RVDisplaySlide slide : slides) {
+				List<RVTextElement> elements = slide.findTextElement();
+				System.out.println(String.format("- Slide (%s text area)", elements.size()));
+			}
+		}
 
 		// JavaObject→XML
 		System.out.println("\n\nBack to XML:");
-		JAXB.marshal(obj, System.out);
+		JAXB.marshal(data, System.out);
 	}
 
+	/**
+	 * Pro6ファイルを読み込む(可能な限りパース)
+	 * 
+	 * @param filepath Pro6ファイルのパス
+	 * @return Javaオブジェクトへマップしたもの
+	 */
+	public static RVPresentationDocument readFromFile(String filepath) {
+		return JAXB.unmarshal(new File(filepath), RVPresentationDocument.class);
+	}
+
+	/**
+	 * Pro6 ルートクラス.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVPresentationDocument {
@@ -93,12 +108,36 @@ public class App {
 
 		@XmlElement(name = "RVTimeline")
 		private RVTimeline rvTimeline;
+		@XmlElement(name = "RVBibleReference")
+		private RVBibleReference rvBibleReference;
 
 		@XmlElement(name = "array")
-		private P6ArrayContainer array;
+		private List<P6ArrayContainer> array;
+
+		/**
+		 * スライドグループを返す
+		 * 
+		 * @return
+		 */
+		public List<RVSlideGrouping> findSlideGroup() {
+			// arrayの中に、変数名がgroupsの要素があれば、それがRVSlideGroupを持つ
+			if (array == null) {
+				return null;
+			}
+			for (P6ArrayContainer item : array) {
+				if ("groups".equals(item.getRvXMLIvarName())) {
+					return item.getRvSlideGrouping();
+				}
+			}
+			return null;
+		}
 
 	}
 
+	/**
+	 * Pro6 特定目的クラス. タイムライン？.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVTimeline {
@@ -121,6 +160,10 @@ public class App {
 
 	}
 
+	/**
+	 * Pro6 特定目的クラス. みことば？.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVBibleReference {
@@ -146,22 +189,10 @@ public class App {
 
 	}
 
-	@lombok.ToString
-	@lombok.Getter
-	public static class P6ArrayContainer {
-
-		@XmlAttribute(name = "rvXMLIvarName")
-		private String rvXMLIvarName;
-
-		@XmlElement(name = "RVSlideGrouping")
-		private List<RVSlideGrouping> rvSlideGrouping;
-		@XmlElement(name = "RVDisplaySlide")
-		private List<RVDisplaySlide> rvDisplaySlide;
-		@XmlElement(name = "RVTextElement")
-		private List<RVTextElement> rvTextElement;
-
-	}
-
+	/**
+	 * Pro6 特定目的クラス. スライドグループ.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVSlideGrouping {
@@ -176,8 +207,28 @@ public class App {
 		@XmlElement(name = "array")
 		private List<P6ArrayContainer> array;
 
+		/**
+		 * このグループに含まれるスライドを返す
+		 * 
+		 * @return
+		 */
+		public List<RVDisplaySlide> findDisplaySlide() {
+			if (array == null) {
+				return null;
+			}
+			for (P6ArrayContainer item : array) {
+				if ("slides".equals(item.getRvXMLIvarName())) {
+					return item.getRvDisplaySlide();
+				}
+			}
+			return null;
+		}
 	}
 
+	/**
+	 * Pro6 特定目的クラス. スライド.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVDisplaySlide {
@@ -206,8 +257,29 @@ public class App {
 		@XmlElement(name = "array")
 		private List<P6ArrayContainer> array;
 
+		/**
+		 * このスライドが持つテキストエリアを返す
+		 * 
+		 * @return
+		 */
+		public List<RVTextElement> findTextElement() {
+			if (array == null) {
+				return null;
+			}
+			for (P6ArrayContainer item : array) {
+				if ("displayElements".equals(item.getRvXMLIvarName())) {
+					return item.getRvTextElement();
+				}
+			}
+			return null;
+		}
+
 	}
 
+	/**
+	 * Pro6 特定目的クラス. テキストエリア.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVTextElement {
@@ -272,10 +344,57 @@ public class App {
 
 	}
 
+	/**
+	 * Pro6 特定目的クラス. アレンジ？.
+	 *
+	 */
+	@lombok.ToString
+	@lombok.Getter
+	public static class RVSongArrangement {
+
+		@XmlAttribute(name = "color")
+		private String color;
+		@XmlAttribute(name = "name")
+		private String name;
+		@XmlAttribute(name = "uuid")
+		private String uuid;
+
+		@XmlElement(name = "array")
+		private List<P6ArrayContainer> array;
+
+	}
+
+	/**
+	 * Pro6 共通クラス. 配列.
+	 *
+	 */
+	@lombok.ToString
+	@lombok.Getter
+	public static class P6ArrayContainer {
+
+		@XmlAttribute(name = "rvXMLIvarName")
+		private String rvXMLIvarName;
+
+		@XmlElement(name = "RVSlideGrouping")
+		private List<RVSlideGrouping> rvSlideGrouping;
+		@XmlElement(name = "RVDisplaySlide")
+		private List<RVDisplaySlide> rvDisplaySlide;
+		@XmlElement(name = "RVTextElement")
+		private List<RVTextElement> rvTextElement;
+		@XmlElement(name = "NSString")
+		private List<P6KeyValue> nsString;
+		@XmlElement(name = "RVSongArrangement")
+		private List<RVSongArrangement> rvSongArrangement;
+
+	}
+
+	/**
+	 * Pro6 共通クラス. 値(RVRect3D, shadow, NSString).
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class P6KeyValue {
-		// RVRect3D, shadow, NSString
 
 		@XmlAttribute(name = "rvXMLIvarName")
 		private String rvXMLIvarName;
@@ -284,6 +403,10 @@ public class App {
 
 	}
 
+	/**
+	 * Pro6 共通クラス. 辞書.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class P6Dictionary {
@@ -300,6 +423,10 @@ public class App {
 
 	}
 
+	/**
+	 * Pro6 共通クラス. 辞書の要素.
+	 *
+	 */
 	@lombok.ToString
 	@lombok.Getter
 	public static class P6DictionaryItem {

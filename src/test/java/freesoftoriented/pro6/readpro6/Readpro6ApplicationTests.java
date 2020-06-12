@@ -12,7 +12,7 @@ class Readpro6ApplicationTests {
 	}
 
 	@Autowired
-	private App app;
+	private ProPresentor6Data app;
 
 	@Test
 	public void test() {
