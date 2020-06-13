@@ -12,12 +12,13 @@ class Readpro6ApplicationTests {
 	}
 
 	@Autowired
-	private ProPresentor6Data app;
+	private Pro6Editor app;
 
 	@Test
 	public void test() {
 		// app
-		app.handleCommand("sample.xml");
+		app.handleCommand("inochino.pro6");
+		app.handleCommand("687-638.pro6");
 	}
 
 }

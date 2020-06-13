@@ -1,131 +1,27 @@
 package freesoftoriented.pro6.readpro6;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.xml.bind.JAXB;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 
 import org.apache.commons.codec.binary.Base64;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 /**
  * ProPresenter6 スライドファイルのデータ
  *
  */
-@Service
+@Component
 public class ProPresentor6Data {
-
-	public void handleCommand(String filepath) {
-		System.out.println("\nRead:" + filepath);
-		// XML File→JavaObject
-		System.out.println("\nConvert:");
-		RVPresentationDocument data = readFromFile(filepath);
-		// Edit
-		System.out.println(String.format("\nSlide size: %s x %s", data.getWidth(), data.getHeight()));
-		List<RVSlideGrouping> slideGroup = data.findSlideGroup();
-		for (RVSlideGrouping group : slideGroup) {
-			List<RVDisplaySlide> slides = group.findDisplaySlide();
-			System.out.println(String.format("Slide Group (%s slides)", slides.size()));
-			for (RVDisplaySlide slide : slides) {
-				List<RVTextElement> elements = slide.findTextElement();
-				System.out.println(String.format("\n- Slide (%s text area)", elements.size()));
-				int[] sizearray = { 116, 100, 100 };
-				if (elements.size() == 1) {
-					sizearray[0] = 138;
-				}
-				for (int i = 0; i < elements.size(); i++) {
-					RVTextElement element = elements.get(i);
-					handleTextElement(element, sizearray[i]);
-				}
-			}
-		}
-
-		// JavaObject→XML
-		System.out.println("\n\nBack to XML:");
-		writeToFile(filepath + "_out.pro6", data);
-	}
-
-	private void handleTextElement(RVTextElement te, int size) {
-		List<Integer> position = te.extractPosition();
-		int ul_x = position.get(0);
-		int ul_y = position.get(1);
-		int lr_x = position.get(3);
-		int lr_y = position.get(4);
-		System.out.println(String.format("  - Text (%d,%d) w%d h%d", ul_x, ul_y, lr_x - ul_x, lr_y - ul_y));
-		String rawRTFData = te.findRawRTFData();
-		RTFEditor rtf = new RTFEditor(rawRTFData);
-		rtf.setFontSize(size);
-		rtf.updateColorTable();
-		te.replaceRawRTFData(rtf.getRtfText());
-		System.out.println(rtf.getRtfText());
-	}
-
-	/**
-	 * RTF部分を編集する
-	 *
-	 */
-	@lombok.ToString(exclude = { "rtfText" })
-	public static class RTFEditor {
-
-		@lombok.Getter
-		private String rtfText;
-
-		public RTFEditor(String rtftext) {
-			this.rtfText = rtftext;
-		}
-
-		public void setFontSize(int size) {
-			// フォントサイズはファイル内部では2倍になっている
-			String[] segments = rtfText.split("\\\\fs");
-			if (segments == null || segments.length == 0) {
-				System.out.println("[INFO] nothing to do");
-				return;
-			}
-			// \fsコマンドで区切って、サイズ部分を上書き
-			List<String> list = new ArrayList<>();
-			list.add(segments[0]);
-			Pattern pattern = Pattern.compile("([0-9]+)(.*)", Pattern.DOTALL);
-			for (int i = 1; i < segments.length; i++) {
-				Matcher matcher = pattern.matcher(segments[i]);
-				if (!matcher.matches()) {
-					System.out.println("[ERROR] Cannot edit");
-					return;
-				}
-				list.add(String.format("%d%s", size * 2, matcher.group(2)));
-			}
-			rtfText = String.join("\\fs", list);
-		}
-
-		public void updateColorTable() {
-			// カラーテーブルを更新する
-			replaceBlacket("{\\colortbl", "{\\colortbl;\\red255\\green255\\blue255;\\red204\\green204\\blue204;}");
-			replaceBlacket("{\\*\\expandedcolortbl",
-					"{\\*\\expandedcolortbl;;\\csgenericrgb\\c80000\\c80000\\c80000;}");
-		}
-
-		/**
-		 * RTFのブラケットひとつをまるっと交換する(入れ子は対応しない)
-		 * 
-		 * @param startblacket ブラケット始まりを特定するための文字列
-		 * @param replace      新しく取り込むブラケットまるごとの文字列
-		 */
-		private void replaceBlacket(String startblacket, String replace) {
-			int startidx = rtfText.indexOf(startblacket);
-			int endidx = rtfText.indexOf("}", startidx);
-			String pre = rtfText.substring(0, startidx);
-			String post = rtfText.substring(endidx + 1, rtfText.length());
-//			System.out.println(pre + replace + post);
-			rtfText = pre + replace + post;
-		}
-	}
 
 	/**
 	 * Pro6ファイルを読み込む(可能な限りパース)
@@ -133,7 +29,7 @@ public class ProPresentor6Data {
 	 * @param filepath Pro6ファイルのパス
 	 * @return Javaオブジェクトへマップしたもの
 	 */
-	public static RVPresentationDocument readFromFile(String filepath) {
+	public RVPresentationDocument readFromFile(String filepath) {
 		return JAXB.unmarshal(new File(filepath), RVPresentationDocument.class);
 	}
 
@@ -143,14 +39,23 @@ public class ProPresentor6Data {
 	 * @param filepath
 	 * @param doc
 	 */
-	public static void writeToFile(String filepath, RVPresentationDocument doc) {
-		JAXB.marshal(doc, new File(filepath));
+	public void writeToFile(String filepath, RVPresentationDocument doc) {
+		try {
+			JAXBContext jc = JAXBContext.newInstance(doc.getClass());
+			Marshaller m = jc.createMarshaller();
+			m.setProperty(Marshaller.JAXB_FRAGMENT, true);
+			m.marshal(doc, new File(filepath));
+		} catch (Exception e) {
+			System.out.println("sorry, errors are muted for now.");
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * Pro6 ルートクラス.
 	 *
 	 */
+	@XmlRootElement(name = "RVPresentationDocument")
 	@lombok.ToString
 	@lombok.Getter
 	public static class RVPresentationDocument {
@@ -507,6 +412,29 @@ public class ProPresentor6Data {
 	}
 
 	/**
+	 * Pro6 特定目的クラス. クリアキュー.
+	 *
+	 */
+	@lombok.ToString
+	@lombok.Getter
+	public static class RVClearCue {
+
+		@XmlAttribute(name = "UUID")
+		private String uuid;
+		@XmlAttribute(name = "actionType")
+		private String actionType;
+		@XmlAttribute(name = "delayTime")
+		private String delayTime;
+		@XmlAttribute(name = "displayName")
+		private String displayName;
+		@XmlAttribute(name = "enabled")
+		private String enabled;
+		@XmlAttribute(name = "timeStamp")
+		private String timeStamp;
+
+	}
+
+	/**
 	 * Pro6 共通クラス. 配列.
 	 *
 	 */
@@ -527,6 +455,8 @@ public class ProPresentor6Data {
 		private List<P6KeyValue> nsString;
 		@XmlElement(name = "RVSongArrangement")
 		private List<RVSongArrangement> rvSongArrangement;
+		@XmlElement(name = "RVClearCue")
+		private List<RVClearCue> rvClearCue;
 
 	}
 

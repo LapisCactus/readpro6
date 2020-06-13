@@ -2,7 +2,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**
 !**/src/test/**
-sample.xml_out.pro6
+*.pro6
 
 ### STS ###
 .apt_generated
