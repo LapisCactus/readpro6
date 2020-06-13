@@ -63,6 +63,7 @@ public class ProPresentor6Data {
 		String rawRTFData = te.findRawRTFData();
 		RTFEditor rtf = new RTFEditor(rawRTFData);
 		rtf.setFontSize(size);
+		rtf.updateColorTable();
 		te.replaceRawRTFData(rtf.getRtfText());
 		System.out.println(rtf.getRtfText());
 	}
@@ -105,6 +106,24 @@ public class ProPresentor6Data {
 
 		public void updateColorTable() {
 			// カラーテーブルを更新する
+			replaceBlacket("{\\colortbl", "{\\colortbl;\\red255\\green255\\blue255;\\red204\\green204\\blue204;}");
+			replaceBlacket("{\\*\\expandedcolortbl",
+					"{\\*\\expandedcolortbl;;\\csgenericrgb\\c80000\\c80000\\c80000;}");
+		}
+
+		/**
+		 * RTFのブラケットひとつをまるっと交換する(入れ子は対応しない)
+		 * 
+		 * @param startblacket ブラケット始まりを特定するための文字列
+		 * @param replace      新しく取り込むブラケットまるごとの文字列
+		 */
+		private void replaceBlacket(String startblacket, String replace) {
+			int startidx = rtfText.indexOf(startblacket);
+			int endidx = rtfText.indexOf("}", startidx);
+			String pre = rtfText.substring(0, startidx);
+			String post = rtfText.substring(endidx + 1, rtfText.length());
+//			System.out.println(pre + replace + post);
+			rtfText = pre + replace + post;
 		}
 	}
 
