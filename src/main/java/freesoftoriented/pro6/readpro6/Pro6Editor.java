@@ -13,12 +13,22 @@ import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVPresentationDocument;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVSlideGrouping;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVTextElement;
 
+/**
+ * Pro6スライドファイルを編集する
+ *
+ */
 @Service
 public class Pro6Editor {
 
+	/** Pro6スライドファイルのデータ表現 */
 	@Autowired
 	private ProPresentor6Data pro6data;
 
+	/**
+	 * コマンドで指定されたファイルを処理する
+	 * 
+	 * @param filepath
+	 */
 	public void handleCommand(String filepath) {
 		System.out.println("\nRead:" + filepath);
 		// XML File→JavaObject
@@ -55,7 +65,7 @@ public class Pro6Editor {
 						System.out.println("    This text area is number? skipped.");
 						continue;
 					}
-					// テキストエリアが１つの場合は、曲名スライド、そうでなければ歌詞スライドとして編集する
+					// タイトルも含め、すべて歌詞スライドとして編集する
 					String rawRTFData = element.findRawRTFData();
 					RTFEditor rtf = new RTFEditor(rawRTFData);
 					rtf.setFontSize((int) (sizefactor * 116 * 2));
@@ -79,7 +89,11 @@ public class Pro6Editor {
 
 	/**
 	 * RTF部分を編集する
-	 *
+	 * <p>
+	 * 参考： <a href=
+	 * "https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/AttributedStrings/Tasks/RTFAndAttrStrings.html">Attributed
+	 * String Programming Guide </a>
+	 * </p>
 	 */
 	@lombok.ToString(exclude = { "rtfText" })
 	public static class RTFEditor {
@@ -92,12 +106,12 @@ public class Pro6Editor {
 		}
 
 		public void setFontSize(int size) {
-			// フォントサイズはファイル内部では2倍になっている(double-point)
+			// フォントサイズはファイル内部では2倍になっている(half-point value)
 			updateCommandParam("\\fs", size);
 		}
 
 		public void setFontSizeMillis(int size) {
-			// フォントサイズはファイル内部では1000倍になっている
+			// フォントサイズ(1000 * font size)
 			updateCommandParam("\\fsmilli", size);
 		}
 
@@ -112,8 +126,8 @@ public class Pro6Editor {
 		}
 
 		public void setStrokeWidth(int width) {
-			// 枠線の幅は、内部では20倍
-			updateCommandParam("\\strokewidth-", width);
+			// 枠線の幅は、内部では20倍(単位：twip)
+			updateCommandParam("\\strokewidth", width);
 		}
 
 		public void setStrokeColor(int colorindex) {
@@ -121,8 +135,8 @@ public class Pro6Editor {
 		}
 
 		public void setLeading(int leading) {
-			// 行間調整は、内部では20倍
-			updateCommandParam("\\slleading-", leading);
+			// 行間調整は、内部では20倍(単位：twip)
+			updateCommandParam("\\slleading", leading);
 		}
 
 		public void updateColorTable() {
@@ -134,7 +148,7 @@ public class Pro6Editor {
 		/**
 		 * コマンドを探し、そのパラメータを変更する
 		 * 
-		 * @param command
+		 * @param command コマンド文字列
 		 * @param param
 		 */
 		private void updateCommandParam(String command, int param) {
@@ -146,7 +160,7 @@ public class Pro6Editor {
 			// コマンドで区切って、サイズ部分を上書き
 			List<String> list = new ArrayList<>();
 			list.add(segments[0]);
-			Pattern pattern = Pattern.compile("([0-9]+)(.*)", Pattern.DOTALL);
+			Pattern pattern = Pattern.compile("([-]?)([0-9]+)(.*)", Pattern.DOTALL);
 			for (int i = 1; i < segments.length; i++) {
 				Matcher matcher = pattern.matcher(segments[i]);
 				if (!matcher.matches()) {
@@ -154,7 +168,7 @@ public class Pro6Editor {
 					list.add(segments[i]);
 					continue;
 				}
-				list.add(String.format("%d%s", param, matcher.group(2)));
+				list.add(String.format("%s%d%s", matcher.group(1), param, matcher.group(3)));
 			}
 			rtfText = String.join(command, list);
 		}

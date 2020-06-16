@@ -26,7 +26,7 @@ public class Main implements ApplicationRunner {
 		} else {
 			System.out.println("Please specify pro6 slide file.");
 			System.out.println("Usage:");
-			System.out.println("  to execute: java -jar pro6converter <filename>");
+			System.out.println("  to execute: java -jar readpro6 <filename>");
 		}
 	}
 
