@@ -3,6 +3,8 @@ target/
 !**/src/main/**
 !**/src/test/**
 *.pro6
+*.log
+*.log.zip
 
 ### STS ###
 .apt_generated

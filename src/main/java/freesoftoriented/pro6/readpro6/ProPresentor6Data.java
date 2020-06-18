@@ -1,5 +1,6 @@
 package freesoftoriented.pro6.readpro6;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
@@ -14,13 +15,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 
 import org.apache.commons.codec.binary.Base64;
-import org.springframework.stereotype.Component;
 
 /**
  * ProPresenter6 スライドファイルのデータ
  *
  */
-@Component
 public class ProPresentor6Data {
 
 	/**
@@ -29,17 +28,17 @@ public class ProPresentor6Data {
 	 * @param filepath Pro6ファイルのパス
 	 * @return Javaオブジェクトへマップしたもの
 	 */
-	public RVPresentationDocument readFromFile(String filepath) {
+	public static RVPresentationDocument readFromFile(String filepath) {
 		return JAXB.unmarshal(new File(filepath), RVPresentationDocument.class);
 	}
 
 	/**
-	 * Pro6ファイルを書き込む
+	 * Pro6ファイルに書き込む
 	 * 
 	 * @param filepath
 	 * @param doc
 	 */
-	public void writeToFile(String filepath, RVPresentationDocument doc) {
+	public static void writeToFile(String filepath, RVPresentationDocument doc) {
 		try {
 			JAXBContext jc = JAXBContext.newInstance(doc.getClass());
 			Marshaller m = jc.createMarshaller();
@@ -49,6 +48,27 @@ public class ProPresentor6Data {
 			System.out.println("sorry, errors are muted for now.");
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * 標準出力に書き込む
+	 * 
+	 * @param obj
+	 */
+	public static void dump(Object obj) {
+		try {
+			JAXBContext jc = JAXBContext.newInstance(obj.getClass());
+			Marshaller m = jc.createMarshaller();
+			m.setProperty(Marshaller.JAXB_FRAGMENT, true);
+			ByteArrayOutputStream baos = new ByteArrayOutputStream(1024 * 100);
+			m.marshal(obj, baos);
+			String str = new String(baos.toByteArray());
+			System.out.println(str);
+		} catch (Exception e) {
+			System.out.println("sorry, errors are muted for now.");
+			e.printStackTrace();
+		}
+
 	}
 
 	/**

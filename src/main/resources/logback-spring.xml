@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ConsoleAppender -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <!-- SizeRollingAppender -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>readpro6.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+        <fileNamePattern>readpro6.%i.log.zip</fileNamePattern>
+        <minIndex>1</minIndex>
+        <maxIndex>3</maxIndex>
+      </rollingPolicy>
+      <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+        <maxFileSize>50KB</maxFileSize>
+      </triggeringPolicy>
+      <encoder>
+        <pattern>%date [%thread] [%-5level] %msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <!-- stdlogは、両方、rootはファイルのみ -->
+    <logger name="stdlog" level="INFO">
+        <appender-ref ref="STDOUT" />
+    </logger>
+    <root level="ERROR">
+        <appender-ref ref="FILE" />
+    </root>
+
+</configuration>

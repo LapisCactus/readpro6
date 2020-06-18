@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVDisplaySlide;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVPresentationDocument;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVSlideGrouping;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVTextElement;
+import freesoftoriented.pro6.readpro6.util.StdLog;
 
 /**
  * Pro6スライドファイルを編集する
@@ -20,31 +20,36 @@ import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVTextElement;
 @Service
 public class Pro6Editor {
 
-	/** Pro6スライドファイルのデータ表現 */
-	@Autowired
-	private ProPresentor6Data pro6data;
-
 	/**
 	 * コマンドで指定されたファイルを処理する
 	 * 
 	 * @param filepath
 	 */
 	public void handleCommand(String filepath) {
-		System.out.println("\nRead:" + filepath);
+		handleCommand(filepath, new Options());
+	}
+
+	/**
+	 * コマンドで指定されたファイルを処理する
+	 * 
+	 * @param filepath
+	 * @param opt
+	 */
+	public void handleCommand(String filepath, Options opt) {
 		// XML File→JavaObject
-		System.out.println("\nConvert:");
-		RVPresentationDocument document = pro6data.readFromFile(filepath);
+		RVPresentationDocument document = ProPresentor6Data.readFromFile(filepath);
 		// Edit
-		double sizefactor = Integer.parseInt(document.getWidth()) / 2215.0;
-		System.out.println(
-				String.format("\nSlide size: %s x %s (f%f)", document.getWidth(), document.getHeight(), sizefactor));
+		String slideWidth = document.getWidth();
+		String slideHeight = document.getHeight();
+		double sizefactor = Integer.parseInt(slideWidth) / 2215.0;
+		StdLog.info(String.format("[%s: %sx%s (f%f)]", filepath, slideWidth, slideHeight, sizefactor));
 		List<RVSlideGrouping> slideGroup = document.findSlideGroup();
 		for (RVSlideGrouping group : slideGroup) {
 			List<RVDisplaySlide> slides = group.findDisplaySlide();
-			System.out.println(String.format("Slide Group (%s slides)", slides.size()));
+			StdLog.info(String.format("[Group: %s slides]", slides.size()));
 			for (RVDisplaySlide slide : slides) {
 				List<RVTextElement> elements = slide.findTextElement();
-				System.out.println(String.format("\n- Slide (%s text area)", elements.size()));
+				StdLog.info(String.format("- [Slide: %s text area]", elements.size()));
 				for (int i = 0; i < elements.size(); i++) {
 					RVTextElement element = elements.get(i);
 
@@ -53,21 +58,29 @@ public class Pro6Editor {
 					int ul_y = position.get(1);
 					int lr_x = position.get(3);
 					int lr_y = position.get(4);
-					System.out.println(String.format("  - Text (%d,%d) w%d h%d", ul_x, ul_y, lr_x - ul_x, lr_y - ul_y));
+					StdLog.info(String.format("  - [Text: at(%d,%d) %dx%d", ul_x, ul_y, lr_x - ul_x, lr_y - ul_y));
+					String rawRTFData = element.findRawRTFData();
+					RTFEditor rtf = new RTFEditor(rawRTFData);
+					if (opt.isLogOriginalRtf()) {
+						StdLog.info(rtf.getRtfText());
+					}
+
+					// 編集不要ならここで抜ける
+					if (!opt.isEdit()) {
+						continue;
+					}
 					// 幅がスクリーンの90%未満の場合は、編集しない
 					if (100 * Math.abs(lr_x - ul_x) / Integer.parseInt(document.getWidth()) < 90) {
-						System.out.println("    This text area is not lyrics nor title. skipped.");
+						StdLog.info("    This text area is not lyrics nor title. skipped.");
 						continue;
 					}
 					// 矩形の上辺が画面の上部10%以内にない場合も、編集しない
 					int uppery = Math.min(ul_y, lr_y);
 					if (100 * uppery / Integer.parseInt(document.getHeight()) > 10) {
-						System.out.println("    This text area is number? skipped.");
+						StdLog.info("    This text area is index? skipped.");
 						continue;
 					}
 					// タイトルも含め、すべて歌詞スライドとして編集する
-					String rawRTFData = element.findRawRTFData();
-					RTFEditor rtf = new RTFEditor(rawRTFData);
 					rtf.setFontSize((int) (sizefactor * 116 * 2));
 					rtf.setFontSizeMillis((int) (sizefactor * 116 * 1000));
 					rtf.updateColorTable();
@@ -76,15 +89,45 @@ public class Pro6Editor {
 					rtf.setStrokeColor(2);
 					rtf.setLeading(200);
 					element.replaceRawRTFData(rtf.getRtfText());
-					System.out.println(rtf.getRtfText());
+					if (opt.isLogConvertedRtf()) {
+						StdLog.info(rtf.getRtfText());
+					}
 				}
 			}
 		}
 
 		// JavaObject→XML
-		System.out.println("\n\nBack to XML:");
-		pro6data.writeToFile(filepath + "_out.pro6", document);
-		System.out.println("\nDONE");
+		if (opt.isLogXml()) {
+			StdLog.info("");
+			StdLog.info("Result XML:");
+			ProPresentor6Data.dump(document);
+		}
+		ProPresentor6Data.writeToFile(filepath + "_out.pro6", document);
+		StdLog.info("DONE");
+		StdLog.info("");
+	}
+
+	/**
+	 * 変換処理のオプション
+	 *
+	 */
+	@lombok.Data
+	@lombok.NoArgsConstructor
+	@lombok.AllArgsConstructor
+	public static class Options {
+
+		/** 変換前のRTFを表示 */
+		private boolean logOriginalRtf = false;
+
+		/** 変換を実施する */
+		private boolean edit = true;
+
+		/** 変換後のRTFを表示 */
+		private boolean logConvertedRtf = true;
+
+		/** 変換後のXMLを表示 */
+		private boolean logXml = false;
+
 	}
 
 	/**
@@ -154,7 +197,7 @@ public class Pro6Editor {
 		private void updateCommandParam(String command, int param) {
 			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
 			if (segments == null || segments.length == 0) {
-				System.out.println("[INFO] nothing to do");
+				StdLog.debug("nothing to do");
 				return;
 			}
 			// コマンドで区切って、サイズ部分を上書き
@@ -164,7 +207,7 @@ public class Pro6Editor {
 			for (int i = 1; i < segments.length; i++) {
 				Matcher matcher = pattern.matcher(segments[i]);
 				if (!matcher.matches()) {
-					System.out.println("[INFO] not apply this line for command:" + command);
+					StdLog.debug("not apply this line for command:" + command);
 					list.add(segments[i]);
 					continue;
 				}
@@ -182,7 +225,7 @@ public class Pro6Editor {
 		private void updateCommandParams(String command, int[] params) {
 			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
 			if (segments == null || segments.length == 0) {
-				System.out.println("[INFO] nothing to do");
+				StdLog.debug("nothing to do");
 				return;
 			}
 			// コマンドで区切って、サイズ部分を上書き
@@ -192,7 +235,7 @@ public class Pro6Editor {
 			for (int i = 1; i < segments.length; i++) {
 				Matcher matcher = pattern.matcher(segments[i]);
 				if (!matcher.matches()) {
-					System.out.println("[INFO] not apply this line for command:" + command);
+					StdLog.debug("not apply this line for command:" + command);
 					list.add(segments[i]);
 					continue;
 				}
@@ -212,7 +255,7 @@ public class Pro6Editor {
 			int endidx = rtfText.indexOf("}", startidx);
 			String pre = rtfText.substring(0, startidx);
 			String post = rtfText.substring(endidx + 1, rtfText.length());
-//			System.out.println(pre + replace + post);
+			StdLog.debug(pre + replace + post);
 			rtfText = pre + replace + post;
 		}
 	}
