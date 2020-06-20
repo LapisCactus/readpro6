@@ -42,14 +42,17 @@ public class Pro6Editor {
 		String slideWidth = document.getWidth();
 		String slideHeight = document.getHeight();
 		double sizefactor = Integer.parseInt(slideWidth) / 2215.0;
-		StdLog.info(String.format("[%s: %sx%s (f%f)]", filepath, slideWidth, slideHeight, sizefactor));
+		StdLog.info(String.format("[File:%s %sx%s (f%f)]", filepath, slideWidth, slideHeight, sizefactor));
 		List<RVSlideGrouping> slideGroup = document.findSlideGroup();
 		for (RVSlideGrouping group : slideGroup) {
 			List<RVDisplaySlide> slides = group.findDisplaySlide();
-			StdLog.info(String.format("[Group: %s slides]", slides.size()));
+			StdLog.info(String.format("- [Group: %s slides]", slides.size()));
 			for (RVDisplaySlide slide : slides) {
 				List<RVTextElement> elements = slide.findTextElement();
-				StdLog.info(String.format("- [Slide: %s text area]", elements.size()));
+				if (elements == null) {
+					continue;
+				}
+				StdLog.info(String.format(" - [Slide: %s text area]", elements.size()));
 				for (int i = 0; i < elements.size(); i++) {
 					RVTextElement element = elements.get(i);
 
@@ -116,6 +119,8 @@ public class Pro6Editor {
 	@lombok.AllArgsConstructor
 	public static class Options {
 
+		public static Options DEFAULT = new Options();
+
 		/** 変換前のRTFを表示 */
 		private boolean logOriginalRtf = false;
 
@@ -123,10 +128,13 @@ public class Pro6Editor {
 		private boolean edit = true;
 
 		/** 変換後のRTFを表示 */
-		private boolean logConvertedRtf = true;
+		private boolean logConvertedRtf = false;
 
 		/** 変換後のXMLを表示 */
 		private boolean logXml = false;
+
+		/** 変換後のXMLを保存するディレクトリ. 未指定で、同一フォルダにリネーム保存. */
+		private String outputFolder = null;
 
 	}
 

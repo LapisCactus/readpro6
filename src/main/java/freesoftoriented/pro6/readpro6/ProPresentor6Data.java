@@ -1,7 +1,8 @@
 package freesoftoriented.pro6.readpro6;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,6 +16,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 
 import org.apache.commons.codec.binary.Base64;
+
+import com.sun.xml.bind.marshaller.CharacterEscapeHandler;
+import com.sun.xml.bind.v2.runtime.Name;
+import com.sun.xml.bind.v2.runtime.output.Encoded;
 
 /**
  * ProPresenter6 スライドファイルのデータ
@@ -60,15 +65,36 @@ public class ProPresentor6Data {
 			JAXBContext jc = JAXBContext.newInstance(obj.getClass());
 			Marshaller m = jc.createMarshaller();
 			m.setProperty(Marshaller.JAXB_FRAGMENT, true);
-			ByteArrayOutputStream baos = new ByteArrayOutputStream(1024 * 100);
-			m.marshal(obj, baos);
-			String str = new String(baos.toByteArray());
-			System.out.println(str);
+			m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+			m.marshal(obj, System.out);
 		} catch (Exception e) {
 			System.out.println("sorry, errors are muted for now.");
 			e.printStackTrace();
 		}
 
+	}
+
+	/**
+	 * デバッグ実行で差し替えて、閉じタグを無理やり表示するためのクラス…
+	 *
+	 */
+	public static class MyXmlOutput extends com.sun.xml.bind.v2.runtime.output.UTF8XmlOutput {
+
+		public MyXmlOutput(OutputStream out, Encoded[] localNames, CharacterEscapeHandler escapeHandler) {
+			super(out, localNames, escapeHandler);
+		}
+
+		@Override
+		public void endTag(Name name) throws IOException {
+			super.closeStartTag();
+			super.endTag(name);
+		}
+
+		@Override
+		public void endTag(int prefix, String localName) throws IOException {
+			super.closeStartTag();
+			super.endTag(prefix, localName);
+		}
 	}
 
 	/**

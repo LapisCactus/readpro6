@@ -25,7 +25,7 @@ public class Main implements ApplicationRunner {
 	public void run(ApplicationArguments args) throws Exception {
 		StdLog.info("=== Pro6 Converter ===");
 		Pro6ConverterArgs myargs = new Pro6ConverterArgs(args);
-		StdLog.info(myargs.toString());
+		StdLog.debug(myargs.toString());
 		if (myargs.isEnoughParameter()) {
 			// 変換処理を実行
 			List<Path> paths = myargs.getPro6filepath();
@@ -55,7 +55,7 @@ public class Main implements ApplicationRunner {
 	private static class Pro6ConverterArgs {
 		private boolean enoughParameter;
 		private List<Path> pro6filepath;
-		private Pro6Editor.Options options = new Pro6Editor.Options(false, true, false, false);
+		private Pro6Editor.Options options = Pro6Editor.Options.DEFAULT;
 
 		public Pro6ConverterArgs(ApplicationArguments args) {
 			enoughParameter = false;
