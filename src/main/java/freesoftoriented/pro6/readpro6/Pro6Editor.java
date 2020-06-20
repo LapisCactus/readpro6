@@ -39,8 +39,14 @@ public class Pro6Editor {
 		double sizefactor = Integer.parseInt(slideWidth) / 2215.0;
 		StdLog.info(String.format("[File:%s %sx%s (f%f)]", filepath, slideWidth, slideHeight, sizefactor));
 		List<RVSlideGrouping> slideGroup = document.findSlideGroup();
+		if (slideGroup == null) {
+			return;
+		}
 		for (RVSlideGrouping group : slideGroup) {
 			List<RVDisplaySlide> slides = group.findDisplaySlide();
+			if (slides == null) {
+				continue;
+			}
 			StdLog.info(String.format("- [Group: %s slides]", slides.size()));
 			for (RVDisplaySlide slide : slides) {
 				List<RVTextElement> elements = slide.findTextElement();
