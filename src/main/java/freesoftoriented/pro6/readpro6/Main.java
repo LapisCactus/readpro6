@@ -41,7 +41,7 @@ public class Main implements ApplicationRunner {
 			StdLog.info("    --show-result-rtf ");
 			StdLog.info("    --show-result-xml ");
 			StdLog.info("    --bypass ");
-			StdLog.info("    --output-dir <directory name>");
+			StdLog.info("    --output-dir=<directory name>");
 		}
 	}
 

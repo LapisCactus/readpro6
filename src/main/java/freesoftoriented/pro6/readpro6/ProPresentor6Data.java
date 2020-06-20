@@ -163,6 +163,8 @@ public class ProPresentor6Data {
 		private RVTimeline rvTimeline;
 		@XmlElement(name = "RVBibleReference")
 		private RVBibleReference rvBibleReference;
+		@XmlElement(name = "RVTransition")
+		private RVTransition rvTransition;
 
 		@XmlElement(name = "array")
 		private List<P6ArrayContainer> array;
@@ -239,6 +241,39 @@ public class ProPresentor6Data {
 		private String verseEnd;
 		@XmlAttribute(name = "verseStart")
 		private String verseStart;
+
+	}
+
+	/**
+	 * Pro6 特定目的クラス. トランジション(切り替えアニメーション).
+	 *
+	 */
+	@lombok.ToString
+	@lombok.Getter
+	public static class RVTransition {
+
+		@XmlAttribute(name = "groupIndex")
+		private String groupIndex;
+		@XmlAttribute(name = "motionDuration")
+		private String motionDuration;
+		@XmlAttribute(name = "motionEnabled")
+		private String motionEnabled;
+		@XmlAttribute(name = "motionSpeed")
+		private String motionSpeed;
+		@XmlAttribute(name = "orderIndex")
+		private String orderIndex;
+		@XmlAttribute(name = "rvXMLIvarName")
+		private String rvXMLIvarName;
+		@XmlAttribute(name = "slideBuildAction")
+		private String slideBuildAction;
+		@XmlAttribute(name = "slideBuildDelay")
+		private String slideBuildDelay;
+		@XmlAttribute(name = "transitionDirection")
+		private String transitionDirection;
+		@XmlAttribute(name = "transitionDuration")
+		private String transitionDuration;
+		@XmlAttribute(name = "transitionType")
+		private String transitionType;
 
 	}
 
