@@ -67,9 +67,10 @@ public class Main implements ApplicationRunner {
 					StdLog.error("Can not open directory: " + path.toString());
 					continue;
 				}
+			} else {
+				String filename = path.toString();
+				editor.handleCommand(filename, options);
 			}
-			String filename = path.toString();
-			editor.handleCommand(filename, options);
 		}
 	}
 
