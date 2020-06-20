@@ -18,7 +18,6 @@ class Readpro6ApplicationTests {
 	public void test() {
 		// app
 		app.handleCommand("inochino.pro6", new Pro6Editor.Options(false, false, false, false, ".\\out"));
-		// app.handleCommand("687-638.pro6");
 	}
 
 }

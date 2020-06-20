@@ -1,5 +1,6 @@
 package freesoftoriented.pro6.readpro6;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,20 +30,46 @@ public class Main implements ApplicationRunner {
 		if (myargs.isEnoughParameter()) {
 			// 変換処理を実行
 			List<Path> paths = myargs.getPro6filepath();
-			for (Path path : paths) {
-				String filename = path.toString();
-				Options options = myargs.getOptions();
-				editor.handleCommand(filename, options);
-			}
+			Options options = myargs.getOptions();
+			callEditor(paths, options);
 		} else {
 			StdLog.info("Please specify pro6 slide file.");
 			StdLog.info("Usage:");
-			StdLog.info("  java -jar readpro6.jar [<option>] <filename> [<other filenames> ...]");
+			StdLog.info("  java -jar readpro6.jar [<option>] <file name> [<other file names> ...]");
 			StdLog.info("  Available options are below:");
 			StdLog.info("    --show-original-rtf ");
 			StdLog.info("    --show-result-rtf ");
 			StdLog.info("    --show-result-xml ");
 			StdLog.info("    --bypass ");
+			StdLog.info("    --output-dir <directory name>");
+		}
+	}
+
+	/**
+	 * Pro6Editorを呼び出して変換実行する.<br/>
+	 * 与えられたパスの存在をチェックし、ディレクトリは再帰的にチェックして、ファイルだけを渡すようにする。
+	 * 
+	 * @param paths
+	 * @param options
+	 */
+	private void callEditor(List<Path> paths, Options options) {
+		for (Path path : paths) {
+			if (!Files.exists(path)) {
+				StdLog.error("Not found: " + path.toString());
+				continue;
+			}
+			if (Files.isDirectory(path)) {
+				try {
+					List<Path> innerFiles = Files.list(path).collect(Collectors.toList());
+					callEditor(innerFiles, options);
+				} catch (IOException e) {
+					// アクセスできない場合
+					StdLog.error("Can not open directory: " + path.toString());
+					continue;
+				}
+			}
+			String filename = path.toString();
+			editor.handleCommand(filename, options);
 		}
 	}
 
@@ -85,6 +112,10 @@ public class Main implements ApplicationRunner {
 			}
 			if (optionNames.contains("bypass")) {
 				options.setEdit(false);
+			}
+			List<String> outputDirs = args.getOptionValues("output-dir");
+			if (outputDirs != null && !outputDirs.isEmpty()) {
+				options.setOutputFolder(outputDirs.get(0));
 			}
 
 		}

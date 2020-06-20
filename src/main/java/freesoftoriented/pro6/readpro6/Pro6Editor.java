@@ -1,5 +1,9 @@
 package freesoftoriented.pro6.readpro6;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -19,15 +23,6 @@ import freesoftoriented.pro6.readpro6.util.StdLog;
  */
 @Service
 public class Pro6Editor {
-
-	/**
-	 * コマンドで指定されたファイルを処理する
-	 * 
-	 * @param filepath
-	 */
-	public void handleCommand(String filepath) {
-		handleCommand(filepath, new Options());
-	}
 
 	/**
 	 * コマンドで指定されたファイルを処理する
@@ -105,7 +100,24 @@ public class Pro6Editor {
 			StdLog.info("Result XML:");
 			ProPresentor6Data.dump(document);
 		}
-		ProPresentor6Data.writeToFile(filepath + "_out.pro6", document);
+
+		if (opt.getOutputFolder() == null) {
+			ProPresentor6Data.writeToFile(filepath + "_out.pro6", document);
+		} else {
+			Path outputDir = Paths.get(opt.getOutputFolder());
+			if (!Files.exists(outputDir)) {
+				try {
+					Files.createDirectories(outputDir);
+				} catch (IOException e) {
+					// !?
+					StdLog.error("Output directory cannot created!");
+					return;
+				}
+			}
+			Path pro6file = Paths.get(filepath);
+			Path outputFile = outputDir.resolve(pro6file.getFileName());
+			ProPresentor6Data.writeToFile(outputFile.toString(), document);
+		}
 		StdLog.info("DONE");
 		StdLog.info("");
 	}
@@ -173,7 +185,6 @@ public class Pro6Editor {
 		public void setFontColor(int tableindex) {
 			// カラーテーブルから選ぶ
 			updateCommandParam("\\cf", tableindex);
-			// updateCommandParam("\\strokec2", 2);
 		}
 
 		public void setStrokeWidth(int width) {

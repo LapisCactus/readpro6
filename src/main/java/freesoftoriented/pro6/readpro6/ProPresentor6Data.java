@@ -75,7 +75,12 @@ public class ProPresentor6Data {
 	}
 
 	/**
-	 * デバッグ実行で差し替えて、閉じタグを無理やり表示するためのクラス…
+	 * デバッグ実行で差し替えて、閉じタグを無理やり表示するためのクラス…<br/>
+	 * ブレークポイントで止めて、以下を実行する。
+	 * 
+	 * <pre>
+	 * out = new freesoftoriented.pro6.readpro6.ProPresentor6Data.MyXmlOutput(os, table, ceh);
+	 * </pre>
 	 *
 	 */
 	public static class MyXmlOutput extends com.sun.xml.bind.v2.runtime.output.UTF8XmlOutput {
