@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>freesoftoriented.pro6</groupId>
 	<artifactId>readpro6</artifactId>
-	<version>0.0.3</version>
+	<version>0.0.4</version>
 	<name>readpro6</name>
 	<description>Read propresenter6 slide file(pro6)</description>
 

@@ -87,14 +87,27 @@ public class Pro6Editor {
 						continue;
 					}
 					// タイトルも含め、すべて歌詞スライドとして編集する
-					rtf.setFontSize((int) (sizefactor * 102 * 2));
-					rtf.setFontSizeMillis((int) (sizefactor * 102 * 1000));
+					int result = 0;
+					result = rtf.setFontSize((int) (sizefactor * 102 * 2));
+					if (result == 0)
+						StdLog.warn("[Not Changed] Font size twips");
+					result = rtf.setFontSizeMillis((int) (sizefactor * 102 * 1000));
+					if (result == 0)
+						StdLog.warn("[Not Changed] Font size millis");
 					rtf.updateColorTable();
-					rtf.setFontColor(1);
-					rtf.setStrokeWidth(100);
-					rtf.setStrokeColor(2);
+					result = rtf.setFontColor(1);
+					if (result == 0)
+						StdLog.warn("[Not Changed] Font color");
+					result = rtf.setStrokeWidth(100);
+					if (result == 0)
+						StdLog.warn("[Not Changed] Stroke width");
+					result = rtf.setStrokeColor(2);
+					if (result == 0)
+						StdLog.warn("[Not Changed] Stroke color");
 					rtf.removeBold();
-					rtf.setLeading(200);
+					result = rtf.setLeading(200);
+					if (result == 0)
+						StdLog.warn("[Not Changed] Line leading");
 					if (opt.isLogPrintableRtf()) {
 						StdLog.info(rtf.getPrintableText());
 					}
@@ -183,48 +196,150 @@ public class Pro6Editor {
 			this.rtfText = rtftext;
 		}
 
-		public void setFontSize(int size) {
+		public int setFontSize(int size) {
 			// フォントサイズはファイル内部では2倍になっている(half-point value)
-			updateCommandParam("\\fs", size);
+			return updateCommandParam("\\fs", size);
 		}
 
-		public void setFontSizeMillis(int size) {
+		public int setFontSizeMillis(int size) {
 			// フォントサイズ(1000 * font size)
-			updateCommandParam("\\fsmilli", size);
+			return updateCommandParam("\\fsmilli", size);
 		}
 
-		public void setFontSize(int[] sizeArray) {
-			updateCommandParams("\\fs", sizeArray);
+		public int setFontSize(int[] sizeArray) {
+			return updateCommandParams("\\fs", sizeArray);
 		}
 
-		public void setFontColor(int tableindex) {
+		public int setFontColor(int tableindex) {
 			// カラーテーブルから選ぶ
-			updateCommandParam("\\cf", tableindex);
+			return updateCommandParam("\\cf", tableindex);
 		}
 
-		public void setStrokeWidth(int width) {
+		public int setStrokeWidth(int width) {
 			// 枠線の幅は、内部では20倍(単位：twip)
-			updateCommandParam("\\strokewidth", width);
+			return updateCommandParam("\\strokewidth", width);
 		}
 
-		public void setStrokeColor(int colorindex) {
-			updateCommandParam("\\strokec", colorindex);
+		public int setStrokeColor(int colorindex) {
+			return updateCommandParam("\\strokec", colorindex);
 		}
 
-		public void setLeading(int leading) {
+		public int setLeading(int leading) {
 			// 行間調整は、内部では20倍(単位：twip)
-			updateCommandParam("\\slleading", leading);
+			return updateCommandParam("\\slleading", leading);
 		}
 
 		public void removeBold() {
 			// ボディ対象、\bと\b0を削除(スペースまたは次の制御語が来ること)
-			replaceForBody("\\b0?(?[ \\])", "");
+			replaceForBody("\\\\b0? ?(?=\\\\)", "");
 		}
 
 		public void updateColorTable() {
 			// カラーテーブルを更新する
 			replaceBlacket("{\\colortbl", "{\\colortbl;\\red255\\green255\\blue255;\\red25\\green25\\blue25;}");
 			replaceBlacket("{\\*\\expandedcolortbl", "{\\*\\expandedcolortbl;;\\cssrgb\\c12984\\c12985\\c12984;}");
+		}
+
+		/**
+		 * コマンドを探し、そのパラメータを変更する
+		 * 
+		 * @param command コマンド文字列
+		 * @param param
+		 * @return 書き換えた箇所の数
+		 */
+		private int updateCommandParam(String command, int param) {
+			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
+			if (segments == null || segments.length == 0) {
+				StdLog.debug("nothing to do");
+				return 0;
+			}
+			// コマンドで区切って、サイズ部分を上書き
+			List<String> list = new ArrayList<>();
+			list.add(segments[0]);
+			Pattern pattern = Pattern.compile("([-]?)([0-9]+)(.*)", Pattern.DOTALL);
+			int changeCount = 0;
+			for (int i = 1; i < segments.length; i++) {
+				Matcher matcher = pattern.matcher(segments[i]);
+				if (!matcher.matches()) {
+					StdLog.debug("not apply this line for command:" + command);
+					list.add(segments[i]);
+					continue;
+				}
+				list.add(String.format("%s%d%s", matcher.group(1), param, matcher.group(3)));
+				changeCount++;
+			}
+			rtfText = String.join(command, list);
+			return changeCount;
+		}
+
+		/**
+		 * コマンドを探し、そのパラメータを変更する
+		 * 
+		 * @param command
+		 * @param param
+		 * @return 書き換えた箇所の数
+		 */
+		private int updateCommandParams(String command, int[] params) {
+			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
+			if (segments == null || segments.length == 0) {
+				StdLog.debug("nothing to do");
+				return 0;
+			}
+			// コマンドで区切って、サイズ部分を上書き
+			List<String> list = new ArrayList<>();
+			list.add(segments[0]);
+			Pattern pattern = Pattern.compile("([0-9]+)(.*)", Pattern.DOTALL);
+			int changeCount = 0;
+			for (int i = 1; i < segments.length; i++) {
+				Matcher matcher = pattern.matcher(segments[i]);
+				if (!matcher.matches()) {
+					StdLog.debug("not apply this line for command:" + command);
+					list.add(segments[i]);
+					continue;
+				}
+				list.add(String.format("%d%s", params[i], matcher.group(2)));
+				changeCount++;
+			}
+			rtfText = String.join(command, list);
+			return changeCount;
+		}
+
+		private void replaceForBody(String regex, String text) {
+			String[] lines = rtfText.split("\n");
+			List<String> result = new ArrayList<>();
+			boolean isBody = false;
+			for (int i = 0; i < lines.length; i++) {
+				String line = lines[i];
+				if (line.length() == 0 || line.charAt(0) == '\r') {
+					isBody = true;
+					// as-is
+					result.add(line);
+					continue;
+				}
+				if (isBody) {
+					// edit
+					result.add(line.replaceAll(regex, text));
+				} else {
+					// as-is
+					result.add(line);
+				}
+			}
+			rtfText = String.join("\n", result);
+		}
+
+		/**
+		 * RTFのブラケットひとつをまるっと交換する(入れ子は対応しない)
+		 * 
+		 * @param startblacket ブラケット始まりを特定するための文字列
+		 * @param replace      新しく取り込むブラケットまるごとの文字列
+		 */
+		private void replaceBlacket(String startblacket, String replace) {
+			int startidx = rtfText.indexOf(startblacket);
+			int endidx = rtfText.indexOf("}", startidx);
+			String pre = rtfText.substring(0, startidx);
+			String post = rtfText.substring(endidx + 1, rtfText.length());
+			StdLog.debug(pre + replace + post);
+			rtfText = pre + replace + post;
 		}
 
 		private String getPrintableText() {
@@ -275,100 +390,6 @@ public class Pro6Editor {
 				e.printStackTrace();
 			}
 			return null;
-		}
-
-		/**
-		 * コマンドを探し、そのパラメータを変更する
-		 * 
-		 * @param command コマンド文字列
-		 * @param param
-		 */
-		private void updateCommandParam(String command, int param) {
-			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
-			if (segments == null || segments.length == 0) {
-				StdLog.debug("nothing to do");
-				return;
-			}
-			// コマンドで区切って、サイズ部分を上書き
-			List<String> list = new ArrayList<>();
-			list.add(segments[0]);
-			Pattern pattern = Pattern.compile("([-]?)([0-9]+)(.*)", Pattern.DOTALL);
-			for (int i = 1; i < segments.length; i++) {
-				Matcher matcher = pattern.matcher(segments[i]);
-				if (!matcher.matches()) {
-					StdLog.debug("not apply this line for command:" + command);
-					list.add(segments[i]);
-					continue;
-				}
-				list.add(String.format("%s%d%s", matcher.group(1), param, matcher.group(3)));
-			}
-			rtfText = String.join(command, list);
-		}
-
-		private void replaceForBody(String regex, String text) {
-			String[] lines = rtfText.split("\n");
-			List<String> result = new ArrayList<>();
-			boolean isBody = false;
-			for (int i = 0; i < lines.length; i++) {
-				String line = lines[i];
-				if (line.length() == 0 || line.charAt(0) == '\r') {
-					isBody = true;
-					// as-is
-					result.add(line);
-					continue;
-				}
-				if (isBody) {
-					// edit
-					result.add(line.replaceAll(regex, text));
-				} else {
-					// as-is
-					result.add(line);
-				}
-			}
-			rtfText = String.join("\n", result);
-		}
-
-		/**
-		 * コマンドを探し、そのパラメータを変更する
-		 * 
-		 * @param command
-		 * @param param
-		 */
-		private void updateCommandParams(String command, int[] params) {
-			String[] segments = rtfText.split(command.replace("\\", "\\\\"));
-			if (segments == null || segments.length == 0) {
-				StdLog.debug("nothing to do");
-				return;
-			}
-			// コマンドで区切って、サイズ部分を上書き
-			List<String> list = new ArrayList<>();
-			list.add(segments[0]);
-			Pattern pattern = Pattern.compile("([0-9]+)(.*)", Pattern.DOTALL);
-			for (int i = 1; i < segments.length; i++) {
-				Matcher matcher = pattern.matcher(segments[i]);
-				if (!matcher.matches()) {
-					StdLog.debug("not apply this line for command:" + command);
-					list.add(segments[i]);
-					continue;
-				}
-				list.add(String.format("%d%s", params[i], matcher.group(2)));
-			}
-			rtfText = String.join(command, list);
-		}
-
-		/**
-		 * RTFのブラケットひとつをまるっと交換する(入れ子は対応しない)
-		 * 
-		 * @param startblacket ブラケット始まりを特定するための文字列
-		 * @param replace      新しく取り込むブラケットまるごとの文字列
-		 */
-		private void replaceBlacket(String startblacket, String replace) {
-			int startidx = rtfText.indexOf(startblacket);
-			int endidx = rtfText.indexOf("}", startidx);
-			String pre = rtfText.substring(0, startidx);
-			String post = rtfText.substring(endidx + 1, rtfText.length());
-			StdLog.debug(pre + replace + post);
-			rtfText = pre + replace + post;
 		}
 	}
 }
