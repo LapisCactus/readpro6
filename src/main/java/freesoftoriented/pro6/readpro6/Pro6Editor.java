@@ -1,5 +1,6 @@
 package freesoftoriented.pro6.readpro6;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVDisplaySlide;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVPresentationDocument;
@@ -85,13 +87,17 @@ public class Pro6Editor {
 						continue;
 					}
 					// タイトルも含め、すべて歌詞スライドとして編集する
-					rtf.setFontSize((int) (sizefactor * 116 * 2));
-					rtf.setFontSizeMillis((int) (sizefactor * 116 * 1000));
+					rtf.setFontSize((int) (sizefactor * 102 * 2));
+					rtf.setFontSizeMillis((int) (sizefactor * 102 * 1000));
 					rtf.updateColorTable();
 					rtf.setFontColor(1);
 					rtf.setStrokeWidth(100);
 					rtf.setStrokeColor(2);
+					rtf.removeBold();
 					rtf.setLeading(200);
+					if (opt.isLogPrintableRtf()) {
+						StdLog.info(rtf.getPrintableText());
+					}
 					element.replaceRawRTFData(rtf.getRtfText());
 					if (opt.isLogConvertedRtf()) {
 						StdLog.info(rtf.getRtfText());
@@ -154,6 +160,9 @@ public class Pro6Editor {
 		/** 変換後のXMLを保存するディレクトリ. 未指定で、同一フォルダにリネーム保存. */
 		private String outputFolder = null;
 
+		/** RTFの地の文を表示 */
+		private boolean logPrintableRtf = false;
+
 	}
 
 	/**
@@ -207,10 +216,65 @@ public class Pro6Editor {
 			updateCommandParam("\\slleading", leading);
 		}
 
+		public void removeBold() {
+			// ボディ対象、\bと\b0を削除(スペースまたは次の制御語が来ること)
+			replaceForBody("\\b0?(?[ \\])", "");
+		}
+
 		public void updateColorTable() {
 			// カラーテーブルを更新する
 			replaceBlacket("{\\colortbl", "{\\colortbl;\\red255\\green255\\blue255;\\red25\\green25\\blue25;}");
 			replaceBlacket("{\\*\\expandedcolortbl", "{\\*\\expandedcolortbl;;\\cssrgb\\c12984\\c12985\\c12984;}");
+		}
+
+		private String getPrintableText() {
+			try {
+				// 全てのRTFドキュメントが、空行で２分されているのかは不明だが...前半(Header)を無視する
+				String[] lines = rtfText.split("\n");
+				List<String> result = new ArrayList<>();
+				boolean isBody = false;
+				for (int i = 0; i < lines.length; i++) {
+					String line = lines[i];
+					if (line.length() == 0 || line.charAt(0) == '\r') {
+						isBody = true;
+						continue;
+					}
+					if (isBody) {
+						// 関係ない制御語・制御シンボルを削ぎ落とす(あと閉じブレースも)
+						String rest = line.replaceAll("\\\\[a-z]+[0-9-]*[ ]?", "").replace("}", "")
+								.replaceAll("\\\\[|~_:*-]", "");
+						if (StringUtils.hasLength(rest)) {
+							result.add(rest);
+						}
+					}
+				}
+				String merged = String.join("\n", result);
+				// 地の文が取れたので、ここから、\'hhと\\nを変換し、印字可能文字とする
+				// RTFなので、すべて7bit文字。byteにキャストしてOK
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				String buf = "";
+				for (int i = 0; i < merged.length(); i++) {
+					char c = merged.charAt(i);
+					buf = String.format("%s%c", buf, c);
+					if (buf.startsWith("\\\'") && buf.length() == 4) {
+						String hh = buf.substring(2);
+						int hex = Integer.parseInt(hh, 16);
+						baos.write(hex);
+						buf = "";
+					} else if (!buf.startsWith("\\")) {
+						baos.write((byte) c);
+						buf = "";
+					} else if (buf.equals("\\\n")) {
+						baos.write((byte) '\n');
+						buf = "";
+					}
+				}
+				String printable = new String(baos.toByteArray(), java.nio.charset.Charset.forName("SHIFT_JIS"));
+				return printable;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return null;
 		}
 
 		/**
@@ -239,6 +303,29 @@ public class Pro6Editor {
 				list.add(String.format("%s%d%s", matcher.group(1), param, matcher.group(3)));
 			}
 			rtfText = String.join(command, list);
+		}
+
+		private void replaceForBody(String regex, String text) {
+			String[] lines = rtfText.split("\n");
+			List<String> result = new ArrayList<>();
+			boolean isBody = false;
+			for (int i = 0; i < lines.length; i++) {
+				String line = lines[i];
+				if (line.length() == 0 || line.charAt(0) == '\r') {
+					isBody = true;
+					// as-is
+					result.add(line);
+					continue;
+				}
+				if (isBody) {
+					// edit
+					result.add(line.replaceAll(regex, text));
+				} else {
+					// as-is
+					result.add(line);
+				}
+			}
+			rtfText = String.join("\n", result);
 		}
 
 		/**

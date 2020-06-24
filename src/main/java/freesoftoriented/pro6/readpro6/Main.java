@@ -40,6 +40,7 @@ public class Main implements ApplicationRunner {
 			StdLog.info("    --show-original-rtf ");
 			StdLog.info("    --show-result-rtf ");
 			StdLog.info("    --show-result-xml ");
+			StdLog.info("    --show-text ");
 			StdLog.info("    --bypass ");
 			StdLog.info("    --output-dir=<directory name>");
 		}
@@ -110,6 +111,9 @@ public class Main implements ApplicationRunner {
 			}
 			if (optionNames.contains("show-result-xml")) {
 				options.setLogXml(true);
+			}
+			if (optionNames.contains("show-text")) {
+				options.setLogPrintableRtf(true);
 			}
 			if (optionNames.contains("bypass")) {
 				options.setEdit(false);
