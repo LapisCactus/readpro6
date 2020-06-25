@@ -105,9 +105,7 @@ public class Pro6Editor {
 					if (result == 0)
 						StdLog.warn("[Not Changed] Stroke color");
 					rtf.removeBold();
-					result = rtf.setLeading(200);
-					if (result == 0)
-						StdLog.warn("[Not Changed] Line leading");
+					rtf.setLeading(-200);
 					if (opt.isLogPrintableRtf()) {
 						StdLog.info(rtf.getPrintableText());
 					}
@@ -224,9 +222,9 @@ public class Pro6Editor {
 			return updateCommandParam("\\strokec", colorindex);
 		}
 
-		public int setLeading(int leading) {
+		public void setLeading(int leading) {
 			// 行間調整は、内部では20倍(単位：twip)
-			return updateCommandParam("\\slleading", leading);
+			updateParagraphControlWord("\\slleading", leading);
 		}
 
 		public void removeBold() {
@@ -340,6 +338,43 @@ public class Pro6Editor {
 			String post = rtfText.substring(endidx + 1, rtfText.length());
 			StdLog.debug(pre + replace + post);
 			rtfText = pre + replace + post;
+		}
+
+		/**
+		 * 段落の制御語を更新する。なければ追加する。
+		 * 
+		 * @param command 制御語(\マーク付きで指定する)
+		 * @param param
+		 */
+		private void updateParagraphControlWord(String command, int param) {
+			String[] lines = rtfText.split("\n");
+			Pattern pattern = Pattern.compile("[0-9-]+(.*)", Pattern.DOTALL);
+			List<String> result = new ArrayList<>();
+			for (int i = 0; i < lines.length; i++) {
+				String line = lines[i];
+				if (line.startsWith("\\pard")) {
+					String[] fragments = line.split(command.replace("\\", "\\\\"));
+					if (fragments.length == 1) {
+						// 該当なし：行末に追加
+						result.add(line + command + param);
+					} else {
+						// 複数あり：数値部分を消して、置き換え
+						List<String> tmp = new ArrayList<>();
+						for (String fragment : fragments) {
+							Matcher matcher = pattern.matcher(fragment);
+							if (matcher.matches()) {
+								tmp.add(String.format("%d%s", param, matcher.group(1)));
+							} else {
+								tmp.add(fragment);
+							}
+						}
+						result.add(String.join(command, tmp));
+					}
+				} else {
+					result.add(line);
+				}
+			}
+			rtfText = String.join("\n", result);
 		}
 
 		private String getPrintableText() {
