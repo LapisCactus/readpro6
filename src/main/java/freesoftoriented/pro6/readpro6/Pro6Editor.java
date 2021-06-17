@@ -2,6 +2,7 @@ package freesoftoriented.pro6.readpro6;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,6 +45,7 @@ public class Pro6Editor {
 		if (slideGroup == null) {
 			return;
 		}
+		List<String> printableTexts = new ArrayList<>();
 		for (RVSlideGrouping group : slideGroup) {
 			List<RVDisplaySlide> slides = group.findDisplaySlide();
 			if (slides == null) {
@@ -88,10 +90,10 @@ public class Pro6Editor {
 					}
 					// タイトルも含め、すべて歌詞スライドとして編集する
 					int result = 0;
-					result = rtf.setFontSize((int) (sizefactor * 102 * 2));
+					result = rtf.setFontSize((int) (sizefactor * 116 * 2));
 					if (result == 0)
 						StdLog.warn("[Not Changed] Font size twips");
-					result = rtf.setFontSizeMillis((int) (sizefactor * 102 * 1000));
+					result = rtf.setFontSizeMillis((int) (sizefactor * 116 * 1000));
 					if (result == 0)
 						StdLog.warn("[Not Changed] Font size millis");
 					rtf.updateColorTable();
@@ -108,6 +110,7 @@ public class Pro6Editor {
 					rtf.setLeading(-200);
 					if (opt.isLogPrintableRtf()) {
 						StdLog.info(rtf.getPrintableText());
+						printableTexts.add(rtf.getPrintableText());
 					}
 					element.replaceRawRTFData(rtf.getRtfText());
 					if (opt.isLogConvertedRtf()) {
@@ -143,6 +146,15 @@ public class Pro6Editor {
 		}
 		StdLog.info("DONE");
 		StdLog.info("");
+		if (printableTexts.size() > 0) {
+			String textBody = String.join("\r\n", printableTexts);
+			String textFilename = filepath + "_out_text.txt";
+			try {
+				Files.write(Paths.get(textFilename), textBody.getBytes(StandardCharsets.UTF_8));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**
