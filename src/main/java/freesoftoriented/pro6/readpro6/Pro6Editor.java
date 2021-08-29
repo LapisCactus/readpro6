@@ -19,6 +19,7 @@ import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVPresentationDocument;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVSlideGrouping;
 import freesoftoriented.pro6.readpro6.ProPresentor6Data.RVTextElement;
 import freesoftoriented.pro6.readpro6.util.StdLog;
+import lombok.AccessLevel;
 
 /**
  * Pro6スライドファイルを編集する
@@ -108,9 +109,14 @@ public class Pro6Editor {
 						StdLog.warn("[Not Changed] Stroke color");
 					rtf.removeBold();
 					rtf.setLeading(-200);
-					if (opt.isLogPrintableRtf()) {
-						StdLog.info(rtf.getPrintableText());
-						printableTexts.add(rtf.getPrintableText());
+					if (opt.isLogPrintableRtf() || opt.isSavePrintableRtf()) {
+						String printableText = rtf.getPrintableText();
+						if (opt.isLogPrintableRtf()) {
+							StdLog.info(printableText);
+						}
+						if (opt.isSavePrintableRtf()) {
+							printableTexts.add(printableText);
+						}
 					}
 					element.replaceRawRTFData(rtf.getRtfText());
 					if (opt.isLogConvertedRtf()) {
@@ -126,35 +132,25 @@ public class Pro6Editor {
 			StdLog.info("Result XML:");
 			ProPresentor6Data.dump(document);
 		}
-
-		if (opt.getOutputFolder() == null) {
-			ProPresentor6Data.writeToFile(filepath + "_out.pro6", document);
-		} else {
-			Path outputDir = Paths.get(opt.getOutputFolder());
-			if (!Files.exists(outputDir)) {
+		// save output file
+		if (!opt.isSavePrintableRtf()) {
+			Path outputPro6Path = opt.getOutputPathDirectoryEnsured(filepath);
+			if (outputPro6Path == null) {
+				return;
+			}
+			ProPresentor6Data.writeToFile(outputPro6Path.toString(), document);
+		} else if (!printableTexts.isEmpty()) {
+			String textBody = String.join("\r\n", printableTexts);
+			Path outpath = opt.getOutputPathDirectoryEnsured(filepath + "_text.txt");
+			if (outpath != null) {
 				try {
-					Files.createDirectories(outputDir);
+					Files.write(outpath, textBody.getBytes(StandardCharsets.UTF_8));
 				} catch (IOException e) {
-					// !?
-					StdLog.error("Output directory cannot created!");
-					return;
+					e.printStackTrace();
 				}
 			}
-			Path pro6file = Paths.get(filepath);
-			Path outputFile = outputDir.resolve(pro6file.getFileName());
-			ProPresentor6Data.writeToFile(outputFile.toString(), document);
 		}
 		StdLog.info("DONE");
-		StdLog.info("");
-		if (printableTexts.size() > 0) {
-			String textBody = String.join("\r\n", printableTexts);
-			String textFilename = filepath + "_out_text.txt";
-			try {
-				Files.write(Paths.get(textFilename), textBody.getBytes(StandardCharsets.UTF_8));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 	/**
@@ -181,11 +177,51 @@ public class Pro6Editor {
 		private boolean logXml = false;
 
 		/** 変換後のXMLを保存するディレクトリ. 未指定で、同一フォルダにリネーム保存. */
+		@lombok.Getter(value = AccessLevel.PRIVATE)
 		private String outputFolder = null;
 
 		/** RTFの地の文を表示 */
 		private boolean logPrintableRtf = false;
 
+		/** RTFの地の文を保存 */
+		private boolean savePrintableRtf = false;
+
+		/**
+		 * 指定のファイル名を設定に基づいて保存するPathを返す. ディレクトリが存在しない場合、ここでEnsureする
+		 * 
+		 * @param originalFilename 変換前のファイル名
+		 * @return Path（出力先ディレクトリを作成しようとして失敗したらnull）
+		 */
+		public Path getOutputPathDirectoryEnsured(String originalFilename) {
+			// Separate with dot
+			int lastSeparator = originalFilename.lastIndexOf("\\");
+			int lastSeparator2 = originalFilename.lastIndexOf("/");
+			int lastDot = originalFilename.lastIndexOf(".");
+			String ext = "";
+			String path = originalFilename;
+			if (Math.max(lastSeparator, lastSeparator2) < lastDot) {
+				ext = originalFilename.substring(lastDot);// with dot
+				path = originalFilename.substring(0, lastDot);
+			}
+			// Calculate path to output
+			if (this.getOutputFolder() == null) {
+				return Paths.get(path + "_out" + ext).toAbsolutePath();
+			} else {
+				Path outputDir = Paths.get(this.getOutputFolder()).toAbsolutePath();
+				if (!Files.exists(outputDir)) {
+					try {
+						Files.createDirectories(outputDir);
+					} catch (IOException e) {
+						// !?
+						StdLog.error("Output directory cannot be created!");
+						return null;
+					}
+				}
+				Path name = Paths.get(originalFilename).getFileName();
+				String outname = outputDir.resolve(name).toString();
+				return Paths.get(outname).toAbsolutePath();
+			}
+		}
 	}
 
 	/**

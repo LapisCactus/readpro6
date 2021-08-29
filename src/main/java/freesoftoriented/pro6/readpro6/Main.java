@@ -31,7 +31,11 @@ public class Main implements ApplicationRunner {
 			// 変換処理を実行
 			List<Path> paths = myargs.getPro6filepath();
 			Options options = myargs.getOptions();
-			callEditor(paths, options);
+			try {
+				callEditor(paths, options);
+			} catch (RuntimeException e) {
+				e.printStackTrace();
+			}
 		} else {
 			StdLog.info("Please specify pro6 slide file.");
 			StdLog.info("Usage:");
@@ -41,6 +45,7 @@ public class Main implements ApplicationRunner {
 			StdLog.info("    --show-result-rtf ");
 			StdLog.info("    --show-result-xml ");
 			StdLog.info("    --show-text ");
+			StdLog.info("    --save-as-text ");
 			StdLog.info("    --bypass ");
 			StdLog.info("    --output-dir=<directory name>");
 		}
@@ -114,6 +119,9 @@ public class Main implements ApplicationRunner {
 			}
 			if (optionNames.contains("show-text")) {
 				options.setLogPrintableRtf(true);
+			}
+			if (optionNames.contains("save-as-text")) {
+				options.setSavePrintableRtf(true);
 			}
 			if (optionNames.contains("bypass")) {
 				options.setEdit(false);
